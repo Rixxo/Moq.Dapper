@@ -3,13 +3,13 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Version>1.1.0</Version>
-    <PackageId>Moq.Dapper</PackageId>
+    <PackageId>Dapper.Moq</PackageId>
     <Description>Moq extensions for Dapper methods.</Description>
     <Copyright>Copyright 2017</Copyright>
     <FileVersion>1.0.0.0</FileVersion>
     <Company>Stefano d'Antonio</Company>
     <Authors>Stefano d'Antonio</Authors>
-    <Product>Moq.Dapper</Product>
+    <Product>Dapper.Moq</Product>
     <PackageLicenseExpression>GPL-2.0-only</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/Lonli-Lokli/Moq.Dapper</PackageProjectUrl>
     <RepositoryUrl></RepositoryUrl>

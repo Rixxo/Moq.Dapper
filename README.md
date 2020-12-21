@@ -117,3 +117,30 @@ public void ExecuteScalarAsync()
     Assert.That(actual, Is.EqualTo(expected));
 }
 ```
+
+
+Mocking a call to `Query` with a simple type and callback to catpure sql request:
+
+```csharp
+[Test]
+public void QueryGeneric()
+{
+    var connection = new Mock<IDbConnection>();
+
+    var expected = new[] { 7, 77, 777 };
+    string expectedQuery = "Select * From Test;";
+    string SqlCommand = null;
+
+    connection.SetupDapper(c => c.Query<int>(It.IsAny<string>(), null, null, true, null, null))
+              .Returns(expected)
+              .Callback<string>(sql => SqlCommand = sql);
+
+    var actual = connection.Object.Query<int>("Select * From Test;", null, null, true, null, null).ToList();
+
+    Assert.That(actual.Count, Is.EqualTo(expected.Length));
+    Assert.That(actual, Is.EquivalentTo(expected));
+    Assert.AreEqual(expectedQuery, SqlCommand);
+}
+```
+
+

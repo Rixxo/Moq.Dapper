@@ -12,7 +12,8 @@ namespace Moq.Dapper
 {
     public static class DbConnectionInterfaceMockExtensions
     {
-        public static ISetup<IDbConnection, TResult> SetupDapper<TResult>(this Mock<IDbConnection> mock, Expression<Func<IDbConnection, TResult>> expression)
+        public static ISetup<IDbConnection, TResult> SetupDapper<TResult>(this Mock<IDbConnection> mock,
+            Expression<Func<IDbConnection, TResult>> expression)
         {
             var call = expression.Body as MethodCallExpression;
 
@@ -22,7 +23,7 @@ namespace Moq.Dapper
             switch (call.Method.Name)
             {
                 case nameof(SqlMapper.Execute):
-                    return (ISetup<IDbConnection, TResult>)SetupExecute(mock);
+                    return (ISetup<IDbConnection, TResult>) SetupExecute(mock);
 
                 case nameof(SqlMapper.ExecuteScalar):
                     return SetupExecuteScalar<TResult>(mock);
@@ -39,7 +40,9 @@ namespace Moq.Dapper
             }
         }
 
-        public static ISetup<IDbConnection, Task<TResult>> SetupDapperAsync<TResult>(this Mock<IDbConnection> mock, Expression<Func<IDbConnection, Task<TResult>>> expression)
+        public static ISetup<IDbConnection, Task<TResult>> SetupDapperAsync<TResult>(
+            this Mock<IDbConnection> mock, Expression<Func<IDbConnection, Task<TResult>>> expression,
+            Action<string> callback = default)
         {
             var call = expression.Body as MethodCallExpression;
 
@@ -54,7 +57,7 @@ namespace Moq.Dapper
                 case nameof(SqlMapper.QuerySingleAsync):
                 case nameof(SqlMapper.QuerySingleOrDefaultAsync):
                     return SetupQueryAsync<TResult>(mock);
-                
+
                 default:
                     throw new NotSupportedException();
             }
@@ -84,6 +87,8 @@ namespace Moq.Dapper
 
             Func<TResult> getResult = null;
             Action callback = null;
+            Action<string> sqlCallback = null;
+            string sqlQuery = null;
 
             setupMock.Setup(setup => setup.Returns(It.IsAny<Func<TResult>>()))
                      .Returns(returnsMock.Object)
@@ -96,10 +101,15 @@ namespace Moq.Dapper
             returnsMock.Setup(rm => rm.Callback(It.IsAny<Action>()))
                        .Callback<Action>(a => callback = a);
 
+            returnsMock.Setup(rm => rm.Callback(It.IsAny<Action<string>>()))
+                .Callback<Action<string>>(a => sqlCallback = a);
+
             var commandMock = new Mock<IDbCommand>();
 
+            commandMock.SetupSet(p => p.CommandText = It.IsAny<string>()).Callback<string>(s => sqlQuery = s);
+
             commandMock.SetupGet(a => a.Parameters)
-                       .Returns(new Mock<IDataParameterCollection>().Object);
+                   .Returns(new Mock<IDataParameterCollection>().Object);
 
             commandMock.Setup(a => a.CreateParameter())
                        .Returns(new Mock<IDbDataParameter>().Object);
@@ -108,6 +118,7 @@ namespace Moq.Dapper
             {
                 var result = getResult();
                 callback?.Invoke();
+                sqlCallback?.Invoke(sqlQuery);
                 return result;
             });
 

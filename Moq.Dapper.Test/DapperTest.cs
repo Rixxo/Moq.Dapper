@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using Dapper;
 using NUnit.Framework;
 
@@ -52,6 +53,28 @@ namespace Moq.Dapper.Test
 
             var secondActual = connection.Object.Query<int>("");
             Assert.That(secondActual, Is.EquivalentTo(secondExpected));
+        }
+
+
+        [Test]
+        public void CallbackSqlQuery()
+        {
+            var connection = new Mock<IDbConnection>();
+
+            int[] firstExpected = { 15 };
+            string expectedQuery = "Select * From Test;";
+
+            IEnumerable<int> expected = firstExpected;
+            string SqlCommand = null;
+
+            connection.SetupDapper(x => x.Query<int>(It.IsAny<string>(), null, null, true, null, null))
+                .Returns(() => expected)
+                .Callback<string>(sql => SqlCommand = sql);
+
+            var firstActual = connection.Object.Query<int>("Select * From Test;");
+            Assert.That(firstActual, Is.EquivalentTo(firstExpected));
+
+            Assert.AreEqual(expectedQuery, SqlCommand);
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Numerics;
@@ -48,6 +49,124 @@ namespace Moq.Dapper.Test
         }
 
         [Test]
+        public void QueryGenericWithCallbackSqlQueryAndOneArg()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            var expected = new[] { 7, 77, 777 };
+            string expectedQuery = "SELECT * FROM Test WHERE id = @Id;";
+            string exepctedArg = "mockId";
+            string SqlCommand = null;
+            string capturedArg = null;
+
+            connection.SetupDapper(c => c.Query<int>(It.IsAny<string>(), null, null, true, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<object>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArg = args.First() as string;
+                });
+
+            var actual = connection.Object.Query<int>("SELECT * FROM Test WHERE id = @Id;", new { Id = "mockId" }).ToList();
+
+            Assert.That(actual.Count, Is.EqualTo(expected.Length));
+            Assert.That(actual, Is.EquivalentTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(exepctedArg, capturedArg);
+        }
+
+        [Test]
+        public void QueryGenericWithCallbackSqlQueryWithoutArgs()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            var expected = new[] { 7, 77, 777 };
+            string expectedQuery = "SELECT * FROM Test WHERE id = @Id;";
+            string SqlCommand = null;
+            IEnumerable<object> capturedArg = null;
+
+            connection.SetupDapper(c => c.Query<int>(It.IsAny<string>(), null, null, true, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<object>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArg = args;
+                });
+
+            var actual = connection.Object.Query<int>("SELECT * FROM Test WHERE id = @Id;").ToList();
+
+            Assert.That(actual.Count, Is.EqualTo(expected.Length));
+            Assert.That(actual, Is.EquivalentTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(Enumerable.Empty<object>(), capturedArg);
+        }
+
+        [Test]
+        public void QueryGenericWithCallbackSqlQueryAndTwoArgsOnlyValues()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            var expected = new[] { 7, 77, 777 };
+            var expectedQuery = "SELECT * FROM Test WHERE id = @Id AND name = @Name;";
+            var exepctedArgs = new [] {"mockId", "mockName" }.ToList();
+            string SqlCommand = null;
+            IEnumerable<string> capturedArgs = null;
+
+            connection.SetupDapper(c => c.Query<int>(It.IsAny<string>(), null, null, true, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<object>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArgs = args.Cast<string>();
+                });
+
+            var actual = connection.Object.Query<int>("SELECT * FROM Test WHERE id = @Id AND name = @Name;",
+                new {Id = "mockId", Name = "mockName"}).ToList();
+
+            Assert.That(actual.Count, Is.EqualTo(expected.Length));
+            Assert.That(actual, Is.EquivalentTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(exepctedArgs, capturedArgs.ToList());
+        }
+
+        [Test]
+        public void QueryGenericWithCallbackSqlQueryAndTwoArgsNamesAndValues()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            var expected = new[] { 7, 77, 777 };
+            var expectedQuery = "SELECT * FROM Test WHERE id = @Id AND name = @Name;";
+            var exepctedArgs = new[]
+            {
+                new KeyValuePair<string, string>("Id", "mockId"),
+                new KeyValuePair<string, string>("Name", "mockName")
+            }.ToList();
+            string SqlCommand = null;
+            IEnumerable<KeyValuePair<string, string>> capturedArgs = null;
+
+            connection.SetupDapper(c => c.Query<int>(It.IsAny<string>(), null, null, true, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<KeyValuePair<string, object>>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArgs =
+                        args.Select(v => new KeyValuePair<string, string>(v.Key, v.Value as string));
+                });
+
+            var actual = connection.Object.Query<int>("SELECT * FROM Test WHERE id = @Id AND name = @Name;",
+                new { Id = "mockId", Name = "mockName" }).ToList();
+
+            Assert.That(actual.Count, Is.EqualTo(expected.Length));
+            Assert.That(actual, Is.EquivalentTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(exepctedArgs, capturedArgs.ToList());
+        }
+
+        [Test]
         public void QuerySingle()
         {
             var connection = new Mock<IDbConnection>();
@@ -79,6 +198,94 @@ namespace Moq.Dapper.Test
 
             Assert.That(actual, Is.EqualTo(expected));
             Assert.AreEqual(expectedQuery, SqlCommand);
+        }
+
+        [Test]
+        public void QuerySingleWithCallbackSqlQueryWithoutArgs()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            string expectedQuery = "SELECT * FROM Test WHERE id = @Id;";
+            string SqlCommand = null;
+            IEnumerable<object> capturedArg = null;
+
+            connection.SetupDapper(c => c.QuerySingle<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<object>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArg = args;
+                });
+
+            var actual = connection.Object.QuerySingle<int>("SELECT * FROM Test WHERE id = @Id;");
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(Enumerable.Empty<object>(), capturedArg);
+        }
+
+        [Test]
+        public void QuerySingleWithCallbackSqlQueryAndTwoArgsOnlyValues()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            var expectedQuery = "SELECT * FROM Test WHERE id = @Id AND name = @Name;";
+            var exepctedArgs = new[] { "mockId", "mockName" }.ToList();
+            string SqlCommand = null;
+            IEnumerable<string> capturedArgs = null;
+
+            connection.SetupDapper(c => c.QuerySingle<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<object>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArgs = args.Cast<string>();
+                });
+
+            var actual = connection.Object.QuerySingle<int>("SELECT * FROM Test WHERE id = @Id AND name = @Name;",
+                new { Id = "mockId", Name = "mockName" });
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(exepctedArgs, capturedArgs.ToList());
+        }
+
+        [Test]
+        public void QuerySingleWithCallbackSqlQueryAndTwoArgsNamesAndValues()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            var expectedQuery = "SELECT * FROM Test WHERE id = @Id AND name = @Name;";
+            var exepctedArgs = new[]
+            {
+                new KeyValuePair<string, string>("Id", "mockId"),
+                new KeyValuePair<string, string>("Name", "mockName")
+            }.ToList();
+            string SqlCommand = null;
+            IEnumerable<KeyValuePair<string, string>> capturedArgs = null;
+
+            connection.SetupDapper(c => c.QuerySingle<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<KeyValuePair<string, object>>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArgs =
+                        args.Select(v => new KeyValuePair<string, string>(v.Key, v.Value as string));
+                });
+
+            var actual = connection.Object.QuerySingle<int>("SELECT * FROM Test WHERE id = @Id AND name = @Name;",
+                new { Id = "mockId", Name = "mockName" });
+
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(exepctedArgs, capturedArgs.ToList());
         }
 
         [Test]
@@ -116,6 +323,94 @@ namespace Moq.Dapper.Test
         }
 
         [Test]
+        public void QuerySingleOrDefaultWithCallbackSqlQueryWithoutArgs()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            string expectedQuery = "SELECT * FROM Test WHERE id = @Id;";
+            string SqlCommand = null;
+            IEnumerable<object> capturedArg = null;
+
+            connection.SetupDapper(c => c.QuerySingleOrDefault<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<object>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArg = args;
+                });
+
+            var actual = connection.Object.QuerySingleOrDefault<int>("SELECT * FROM Test WHERE id = @Id;");
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(Enumerable.Empty<object>(), capturedArg);
+        }
+
+        [Test]
+        public void QuerySingleOrDefaultWithCallbackSqlQueryAndTwoArgsOnlyValues()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            var expectedQuery = "SELECT * FROM Test WHERE id = @Id AND name = @Name;";
+            var exepctedArgs = new[] { "mockId", "mockName" }.ToList();
+            string SqlCommand = null;
+            IEnumerable<string> capturedArgs = null;
+
+            connection.SetupDapper(c => c.QuerySingleOrDefault<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<object>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArgs = args.Cast<string>();
+                });
+
+            var actual = connection.Object.QuerySingleOrDefault<int>("SELECT * FROM Test WHERE id = @Id AND name = @Name;",
+                new { Id = "mockId", Name = "mockName" });
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(exepctedArgs, capturedArgs.ToList());
+        }
+
+        [Test]
+        public void QuerySingleOrDefaultWithCallbackSqlQueryAndTwoArgsNamesAndValues()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            var expectedQuery = "SELECT * FROM Test WHERE id = @Id AND name = @Name;";
+            var exepctedArgs = new[]
+            {
+                new KeyValuePair<string, string>("Id", "mockId"),
+                new KeyValuePair<string, string>("Name", "mockName")
+            }.ToList();
+            string SqlCommand = null;
+            IEnumerable<KeyValuePair<string, string>> capturedArgs = null;
+
+            connection.SetupDapper(c => c.QuerySingleOrDefault<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<KeyValuePair<string, object>>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArgs =
+                        args.Select(v => new KeyValuePair<string, string>(v.Key, v.Value as string));
+                });
+
+            var actual = connection.Object.QuerySingleOrDefault<int>("SELECT * FROM Test WHERE id = @Id AND name = @Name;",
+                new { Id = "mockId", Name = "mockName" });
+
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(exepctedArgs, capturedArgs.ToList());
+        }
+
+        [Test]
         public void QueryFirst()
         {
             var connection = new Mock<IDbConnection>();
@@ -150,6 +445,94 @@ namespace Moq.Dapper.Test
         }
 
         [Test]
+        public void QueryFirstWithCallbackSqlQueryWithoutArgs()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            string expectedQuery = "SELECT * FROM Test WHERE id = @Id;";
+            string SqlCommand = null;
+            IEnumerable<object> capturedArg = null;
+
+            connection.SetupDapper(c => c.QueryFirst<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<object>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArg = args;
+                });
+
+            var actual = connection.Object.QueryFirst<int>("SELECT * FROM Test WHERE id = @Id;");
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(Enumerable.Empty<object>(), capturedArg);
+        }
+
+        [Test]
+        public void QueryFirstWithCallbackSqlQueryAndTwoArgsOnlyValues()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            var expectedQuery = "SELECT * FROM Test WHERE id = @Id AND name = @Name;";
+            var exepctedArgs = new[] { "mockId", "mockName" }.ToList();
+            string SqlCommand = null;
+            IEnumerable<string> capturedArgs = null;
+
+            connection.SetupDapper(c => c.QueryFirst<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<object>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArgs = args.Cast<string>();
+                });
+
+            var actual = connection.Object.QueryFirst<int>("SELECT * FROM Test WHERE id = @Id AND name = @Name;",
+                new { Id = "mockId", Name = "mockName" });
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(exepctedArgs, capturedArgs.ToList());
+        }
+
+        [Test]
+        public void QueryFirstWithCallbackSqlQueryAndTwoArgsNamesAndValues()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            var expectedQuery = "SELECT * FROM Test WHERE id = @Id AND name = @Name;";
+            var exepctedArgs = new[]
+            {
+                new KeyValuePair<string, string>("Id", "mockId"),
+                new KeyValuePair<string, string>("Name", "mockName")
+            }.ToList();
+            string SqlCommand = null;
+            IEnumerable<KeyValuePair<string, string>> capturedArgs = null;
+
+            connection.SetupDapper(c => c.QueryFirst<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<KeyValuePair<string, object>>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArgs =
+                        args.Select(v => new KeyValuePair<string, string>(v.Key, v.Value as string));
+                });
+
+            var actual = connection.Object.QueryFirst<int>("SELECT * FROM Test WHERE id = @Id AND name = @Name;",
+                new { Id = "mockId", Name = "mockName" });
+
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(exepctedArgs, capturedArgs.ToList());
+        }
+
+        [Test]
         public void QueryFirstOrDefault()
         {
             var connection = new Mock<IDbConnection>();
@@ -181,6 +564,94 @@ namespace Moq.Dapper.Test
 
             Assert.That(actual, Is.EqualTo(expected));
             Assert.AreEqual(expectedQuery, SqlCommand);
+        }
+
+        [Test]
+        public void QueryFirstOrDefaultWithCallbackSqlQueryWithoutArgs()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            string expectedQuery = "SELECT * FROM Test WHERE id = @Id;";
+            string SqlCommand = null;
+            IEnumerable<object> capturedArg = null;
+
+            connection.SetupDapper(c => c.QueryFirstOrDefault<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<object>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArg = args;
+                });
+
+            var actual = connection.Object.QueryFirstOrDefault<int>("SELECT * FROM Test WHERE id = @Id;");
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(Enumerable.Empty<object>(), capturedArg);
+        }
+
+        [Test]
+        public void QueryFirstOrDefaultWithCallbackSqlQueryAndTwoArgsOnlyValues()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            var expectedQuery = "SELECT * FROM Test WHERE id = @Id AND name = @Name;";
+            var exepctedArgs = new[] { "mockId", "mockName" }.ToList();
+            string SqlCommand = null;
+            IEnumerable<string> capturedArgs = null;
+
+            connection.SetupDapper(c => c.QueryFirstOrDefault<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<object>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArgs = args.Cast<string>();
+                });
+
+            var actual = connection.Object.QueryFirstOrDefault<int>("SELECT * FROM Test WHERE id = @Id AND name = @Name;",
+                new { Id = "mockId", Name = "mockName" });
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(exepctedArgs, capturedArgs.ToList());
+        }
+
+        [Test]
+        public void QueryFirstOrDefaultWithCallbackSqlQueryAndTwoArgsNamesAndValues()
+        {
+
+            var connection = new Mock<IDbConnection>();
+
+            const int expected = 7;
+            var expectedQuery = "SELECT * FROM Test WHERE id = @Id AND name = @Name;";
+            var exepctedArgs = new[]
+            {
+                new KeyValuePair<string, string>("Id", "mockId"),
+                new KeyValuePair<string, string>("Name", "mockName")
+            }.ToList();
+            string SqlCommand = null;
+            IEnumerable<KeyValuePair<string, string>> capturedArgs = null;
+
+            connection.SetupDapper(c => c.QueryFirstOrDefault<int>(It.IsAny<string>(), null, null, null, null))
+                .Returns(expected)
+                .Callback<string, IEnumerable<KeyValuePair<string, object>>>((sql, args) =>
+                {
+                    SqlCommand = sql;
+                    capturedArgs =
+                        args.Select(v => new KeyValuePair<string, string>(v.Key, v.Value as string));
+                });
+
+            var actual = connection.Object.QueryFirstOrDefault<int>("SELECT * FROM Test WHERE id = @Id AND name = @Name;",
+                new { Id = "mockId", Name = "mockName" });
+
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.AreEqual(expectedQuery, SqlCommand);
+            Assert.AreEqual(exepctedArgs, capturedArgs.ToList());
         }
 
         [Test]

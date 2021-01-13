@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -97,7 +99,11 @@ namespace Moq.Dapper
             Func<TResult> getResult = null;
             Action callback = null;
             Action<string> sqlCallback = null;
+            Action<string, IEnumerable<object>> sqlCallbackWithArgsValues = null;
+            Action<string, IEnumerable<KeyValuePair<string, object>>> sqlCallbackWithArgsNamesAndValues = null;
             string sqlQuery = null;
+            var argsValues = new List<object>();
+            var argsNames = new List<string>();
 
             setupMock.Setup(setup => setup.Returns(It.IsAny<Func<TResult>>()))
                      .Returns(returnsMock.Object)
@@ -113,6 +119,16 @@ namespace Moq.Dapper
             returnsMock.Setup(rm => rm.Callback(It.IsAny<Action<string>>()))
                 .Callback<Action<string>>(a => sqlCallback = a);
 
+            returnsMock.Setup(rm =>
+                    rm.Callback(It.IsAny<Action<string, IEnumerable<object>>>()))
+                .Callback<Action<string, IEnumerable<object>>>(a =>
+                    sqlCallbackWithArgsValues = a);
+
+            returnsMock.Setup(rm =>
+                    rm.Callback(It.IsAny<Action<string, IEnumerable<KeyValuePair<string, object>>>>()))
+                .Callback<Action<string, IEnumerable<KeyValuePair<string, object>>>>(a =>
+                    sqlCallbackWithArgsNamesAndValues = a);
+
             var commandMock = new Mock<IDbCommand>();
 
             commandMock.SetupSet(p => p.CommandText = It.IsAny<string>()).Callback<string>(s => sqlQuery = s);
@@ -120,14 +136,28 @@ namespace Moq.Dapper
             commandMock.SetupGet(a => a.Parameters)
                    .Returns(new Mock<IDataParameterCollection>().Object);
 
+            var mockDataParameter = new Mock<IDataParameter>();
+            mockDataParameter.SetupSet(p => p.ParameterName = It.IsAny<string>()).Callback<string>(name =>
+            {
+                argsNames.Add(name);
+            });
+            mockDataParameter.SetupSet(p => p.Value = It.IsAny<object>()).Callback<object>(val =>
+            {
+                argsValues.Add(val);
+            });
+
             commandMock.Setup(a => a.CreateParameter())
-                       .Returns(new Mock<IDbDataParameter>().Object);
+                .Returns(mockDataParameter.As<IDbDataParameter>().Object);
 
             mockResult(commandMock, () =>
             {
                 var result = getResult();
                 callback?.Invoke();
                 sqlCallback?.Invoke(sqlQuery);
+                sqlCallbackWithArgsValues?.Invoke(sqlQuery, argsValues);
+                sqlCallbackWithArgsNamesAndValues?.Invoke(sqlQuery,
+                    argsNames.Zip(argsValues,
+                        (name, value) => new KeyValuePair<string, object>(name, value)));
                 return result;
             });
 

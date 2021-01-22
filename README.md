@@ -118,8 +118,7 @@ public void ExecuteScalarAsync()
 }
 ```
 
-
-Mocking a call to `Query` with a simple type and callback to catpure sql request:
+If you are interested in capturing the query string, you can mock the `Query` API with a simple type and callback to catpure sql request:
 
 ```csharp
 [Test]
@@ -140,6 +139,74 @@ public void QueryGeneric()
     Assert.That(actual.Count, Is.EqualTo(expected.Length));
     Assert.That(actual, Is.EquivalentTo(expected));
     Assert.AreEqual(expectedQuery, SqlCommand);
+}
+```
+
+You can caputure the query string and its arguments as well by mocking the `Query` API and specifying an `IEnumerable<object>` in the callback. 
+You'll, however, have to cast them to they `type` you expect them to be, in the following way:
+
+```csharp
+public void QueryGenericWithCallbackSqlQueryAndOneArg()
+{
+    var connection = new Mock<IDbConnection>();
+
+    var expected = new[] { 7, 77, 777 };
+    const string expectedQuery = "SELECT * FROM Test WHERE id = @Id;";
+    const string expectedArg = "mockId";
+    string sqlCommand = null;
+    string capturedArg = null;
+
+    connection.SetupDapper(c => c.Query<int>(It.IsAny<string>(), null, null, true, null, null))
+        .Returns(expected)
+        .Callback<string, IEnumerable<object>>((sql, args) =>
+        {
+            sqlCommand = sql;
+            capturedArg = args.First() as string;
+        });
+
+    var actual = connection.Object.Query<int>("SELECT * FROM Test WHERE id = @Id;", new { Id = "mockId" }).ToList();
+
+    Assert.That(actual.Count, Is.EqualTo(expected.Length));
+    Assert.That(actual, Is.EquivalentTo(expected));
+    Assert.AreEqual(expectedQuery, sqlCommand);
+    Assert.AreEqual(expectedArg, capturedArg);
+}
+```
+
+It is also possible to caputure the query's arguments names. That requires an `IEnumerable<KeyValuePair<string, string>>` specified in the callback in the following way:
+
+```csharp
+[Test]
+public void QueryGenericWithCallbackSqlQueryAndTwoArgsNamesAndValues()
+{
+    var connection = new Mock<IDbConnection>();
+
+    var expected = new[] { 7, 77, 777 };
+    const string expectedQuery = "SELECT * FROM Test WHERE id = @Id AND name = @Name;";
+    var expectedArgs = new[]
+    {
+        new KeyValuePair<string, string>("Id", "mockId"),
+        new KeyValuePair<string, string>("Name", "mockName")
+    }.ToList();
+    string sqlCommand = null;
+    IEnumerable<KeyValuePair<string, string>> capturedArgs = null;
+
+    connection.SetupDapper(c => c.Query<int>(It.IsAny<string>(), null, null, true, null, null))
+        .Returns(expected)
+        .Callback<string, IEnumerable<KeyValuePair<string, object>>>((sql, args) =>
+        {
+            sqlCommand = sql;
+            capturedArgs =
+                args.Select(v => new KeyValuePair<string, string>(v.Key, v.Value as string));
+        });
+
+    var actual = connection.Object.Query<int>("SELECT * FROM Test WHERE id = @Id AND name = @Name;",
+        new { Id = "mockId", Name = "mockName" }).ToList();
+
+    Assert.That(actual.Count, Is.EqualTo(expected.Length));
+    Assert.That(actual, Is.EquivalentTo(expected));
+    Assert.AreEqual(expectedQuery, sqlCommand);
+    Assert.AreEqual(expectedArgs, capturedArgs.ToList());
 }
 ```
 

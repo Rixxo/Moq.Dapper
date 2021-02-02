@@ -2,21 +2,21 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>1.2.1</Version>
+    <Version>1.3.0</Version>
     <PackageId>Dapper.Moq</PackageId>
     <Description>Moq extensions for Dapper methods.</Description>
     <Copyright>Copyright 2017</Copyright>
     <FileVersion>1.0.0.0</FileVersion>
     <Company>Stefano d'Antonio</Company>
-    <Authors>Stefano d'Antonio, Marco Rizzo</Authors>
+    <Authors>Stefano d'Antonio</Authors>
     <Product>Dapper.Moq</Product>
     <PackageLicenseExpression>GPL-2.0-only</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/Rixxo/Moq.Dapper</PackageProjectUrl>
     <RepositoryUrl></RepositoryUrl>
     <PackageTags>Moq Dapper Test</PackageTags>
-    <PackageReleaseNotes>Updates Dapper Dependency.
-Created callback support for capturing SQL queries.
-ExecuteAsync support for IDbConnection</PackageReleaseNotes>
+    <PackageReleaseNotes>Capturing SQL query string through callback
+Capturing arguments associated with the SQL query through callback
+Support for capturing queries and arguments for regualar and Async APIs</PackageReleaseNotes>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <AssemblyVersion>1.1.0</AssemblyVersion>
   </PropertyGroup>
